@@ -1,0 +1,15 @@
+{
+  "name": "Asterless/MoonCoc",
+  "version": "0.1.0",
+  "readme": "README.mbt.md",
+  "repository": "",
+  "license": "Apache-2.0",
+  "keywords": [
+    "moonbit",
+    "calculus-of-constructions",
+    "type-theory",
+    "repl",
+    "lambda-calculus"
+  ],
+  "description": "Minimal Calculus of Constructions core and prefix-style REPL implemented in MoonBit"
+}

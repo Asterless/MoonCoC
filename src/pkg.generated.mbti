@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Asterless/MoonCoc/src"
+
+// Values
+fn convertible(Term, Term) -> Bool
+
+fn empty_ctx() -> Array[Binding]
+
+fn extend(Array[Binding], String, Term) -> Array[Binding]
+
+fn level_succ(String) -> String
+
+fn lookup(Array[Binding], String) -> Term
+
+fn mk_app(Term, Term) -> Term
+
+fn mk_lam(String, Term, Term) -> Term
+
+fn mk_let(String, Term, Term, Term) -> Term
+
+fn mk_pi(String, Term, Term) -> Term
+
+fn mk_sort(String) -> Term
+
+fn mk_var(String) -> Term
+
+fn normalize(Term) -> Term
+
+fn pp(Term) -> String
+
+fn repl_help() -> String
+
+fn repl_init() -> ReplState
+
+fn repl_process(ReplState, String) -> ReplStep
+
+fn repl_run_script(Array[String]) -> Array[String]
+
+fn subst(Term, String, Term) -> Term
+
+fn tc_demo_infer_id() -> String
+
+fn term_eq(Term, Term) -> Bool
+
+fn type_infer(Array[Binding], Term) -> Term
+
+fn whnf(Term) -> Term
+
+// Errors
+
+// Types and methods
+type Binding
+
+pub struct Definition {
+  name : String
+  term : Term
+  ty : Term
+}
+
+pub struct ReplState {
+  ctx : Array[Binding]
+  defs : Array[Definition]
+}
+
+pub struct ReplStep {
+  state : ReplState
+  output : String
+}
+
+type Term
+
+// Type aliases
+
+// Traits
+

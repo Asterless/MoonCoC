@@ -9,17 +9,13 @@ Minimal Calculus of Constructions (CoC) core written in [MoonBit](https://docs.m
 - Scriptable REPL pipeline (`repl_process`, `repl_run_script`) suited for editors, tests, or future CLI front-ends.
 - Snapshot-driven test suite covering β-reduction, normalization, type inference, and REPL commands.
 
-## Getting Started
+## Installation
 
-Requirements: MoonBit toolchain ≥ 0.1.0.
+Add this package to your MoonBit project:
 
-```powershell
-moon info
-moon fmt
-moon test
+```bash
+moon add Asterless/MoonCoc
 ```
-
-`moon info` refreshes generated interfaces, `moon fmt` enforces formatting, and `moon test` runs the full suite (29 tests).
 
 ## Repository Layout
 
@@ -54,14 +50,6 @@ let outputs = @coc.repl_run_script([
 ```
 
 These helpers make it easy to integrate MoonCoc into editors, tests, or custom tooling.
-
-## Development Workflow
-
-- Format: `moon fmt`
-- Regenerate interfaces: `moon info`
-- Run tests: `moon test`
-
-When output snapshots change legitimately, rerun `moon test --update` and inspect the diffs.
 
 ## License
 

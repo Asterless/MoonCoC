@@ -10,5 +10,5 @@
             "alias": "rl"
         }
     ],
-        "alert-list": "-deprecated"
+    "alert-list": "-deprecated"
 }

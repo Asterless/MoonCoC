@@ -58,79 +58,75 @@ fn split_tokens(line : String) -> Array[String] {
 /// Recursively parses a term from the token stream starting at the provided index.
 fn parse_term(tokens : Array[String], start : Int) -> ParseResult {
   if start >= tokens.length() {
-    return ParseResult::Err("unexpected end of term")
+    return Err("unexpected end of term")
   }
   let head = tokens[start]
   if head == "var" {
     if start + 1 >= tokens.length() {
-      ParseResult::Err("expected name after 'var'")
+      Err("expected name after 'var'")
     } else {
-      ParseResult::Ok(mk_var(tokens[start + 1]), start + 2)
+      Ok(mk_var(tokens[start + 1]), start + 2)
     }
   } else if head == "sort" {
     if start + 1 >= tokens.length() {
-      ParseResult::Err("expected level after 'sort'")
+      Err("expected level after 'sort'")
     } else {
-      ParseResult::Ok(mk_sort(tokens[start + 1]), start + 2)
+      Ok(mk_sort(tokens[start + 1]), start + 2)
     }
   } else if head == "lam" {
     if start + 1 >= tokens.length() {
-      return ParseResult::Err("expected parameter name after 'lam'")
+      return Err("expected parameter name after 'lam'")
     }
     let name = tokens[start + 1]
     match parse_term(tokens, start + 2) {
-      ParseResult::Err(msg) => ParseResult::Err(msg)
-      ParseResult::Ok(ty, next) =>
+      Err(msg) => Err(msg)
+      Ok(ty, next) =>
         match parse_term(tokens, next) {
-          ParseResult::Err(msg) => ParseResult::Err(msg)
-          ParseResult::Ok(body, next2) =>
-            ParseResult::Ok(mk_lam(name, ty, body), next2)
+          Err(msg) => Err(msg)
+          Ok(body, next2) => Ok(mk_lam(name, ty, body), next2)
         }
     }
   } else if head == "pi" {
     if start + 1 >= tokens.length() {
-      return ParseResult::Err("expected parameter name after 'pi'")
+      return Err("expected parameter name after 'pi'")
     }
     let name = tokens[start + 1]
     match parse_term(tokens, start + 2) {
-      ParseResult::Err(msg) => ParseResult::Err(msg)
-      ParseResult::Ok(dom, next) =>
+      Err(msg) => Err(msg)
+      Ok(dom, next) =>
         match parse_term(tokens, next) {
-          ParseResult::Err(msg) => ParseResult::Err(msg)
-          ParseResult::Ok(cod, next2) =>
-            ParseResult::Ok(mk_pi(name, dom, cod), next2)
+          Err(msg) => Err(msg)
+          Ok(cod, next2) => Ok(mk_pi(name, dom, cod), next2)
         }
     }
   } else if head == "app" {
     match parse_term(tokens, start + 1) {
-      ParseResult::Err(msg) => ParseResult::Err(msg)
-      ParseResult::Ok(fn_, next) =>
+      Err(msg) => Err(msg)
+      Ok(fn_, next) =>
         match parse_term(tokens, next) {
-          ParseResult::Err(msg) => ParseResult::Err(msg)
-          ParseResult::Ok(arg, next2) =>
-            ParseResult::Ok(mk_app(fn_, arg), next2)
+          Err(msg) => Err(msg)
+          Ok(arg, next2) => Ok(mk_app(fn_, arg), next2)
         }
     }
   } else if head == "let" {
     if start + 1 >= tokens.length() {
-      return ParseResult::Err("expected name after 'let'")
+      return Err("expected name after 'let'")
     }
     let name = tokens[start + 1]
     match parse_term(tokens, start + 2) {
-      ParseResult::Err(msg) => ParseResult::Err(msg)
-      ParseResult::Ok(ty, next) =>
+      Err(msg) => Err(msg)
+      Ok(ty, next) =>
         match parse_term(tokens, next) {
-          ParseResult::Err(msg) => ParseResult::Err(msg)
-          ParseResult::Ok(val, next2) =>
+          Err(msg) => Err(msg)
+          Ok(val, next2) =>
             match parse_term(tokens, next2) {
-              ParseResult::Err(msg) => ParseResult::Err(msg)
-              ParseResult::Ok(body, next3) =>
-                ParseResult::Ok(mk_let(name, ty, val, body), next3)
+              Err(msg) => Err(msg)
+              Ok(body, next3) => Ok(mk_let(name, ty, val, body), next3)
             }
         }
     }
   } else {
-    ParseResult::Err("unknown term constructor '" + head + "'")
+    Err("unknown term constructor '" + head + "'")
   }
 }
 
@@ -149,11 +145,11 @@ fn find_definition(
   idx : Int,
 ) -> LookupResult {
   if idx >= defs.length() {
-    LookupResult::Missing
+    Missing
   } else {
     let def = defs[idx]
     if def.name == name {
-      LookupResult::Found(def.term)
+      Found(def.term)
     } else {
       find_definition(defs, name, idx + 1)
     }
@@ -167,20 +163,20 @@ fn expand_defs(term : Term, defs : Array[Definition], depth : Int) -> Term {
     return term
   }
   match term {
-    Term::Var(n) =>
+    Var(n) =>
       match find_definition(defs, n, 0) {
-        LookupResult::Found(def_term) => expand_defs(def_term, defs, depth + 1)
-        LookupResult::Missing => term
+        Found(def_term) => expand_defs(def_term, defs, depth + 1)
+        Missing => term
       }
-    Term::Sort(_) => term
-    Term::Pi(n, dom, cod) =>
-      Term::Pi(n, expand_defs(dom, defs, depth), expand_defs(cod, defs, depth))
-    Term::Lam(n, ty, body) =>
-      Term::Lam(n, expand_defs(ty, defs, depth), expand_defs(body, defs, depth))
-    Term::App(fn_, arg) =>
-      Term::App(expand_defs(fn_, defs, depth), expand_defs(arg, defs, depth))
-    Term::Let(n, ty, val, body) =>
-      Term::Let(
+    Sort(_) => term
+    Pi(n, dom, cod) =>
+      Pi(n, expand_defs(dom, defs, depth), expand_defs(cod, defs, depth))
+    Lam(n, ty, body) =>
+      Lam(n, expand_defs(ty, defs, depth), expand_defs(body, defs, depth))
+    App(fn_, arg) =>
+      App(expand_defs(fn_, defs, depth), expand_defs(arg, defs, depth))
+    Let(n, ty, val, body) =>
+      Let(
         n,
         expand_defs(ty, defs, depth),
         expand_defs(val, defs, depth),
@@ -193,7 +189,7 @@ fn expand_defs(term : Term, defs : Array[Definition], depth : Int) -> Term {
 /// Detects whether a term is one of the stringly-typed error sentinels.
 fn is_error_sort(t : Term) -> Bool {
   match t {
-    Term::Sort(label) =>
+    Sort(label) =>
       label == "ERROR:unbound" ||
       label == "ERROR:pi_domain_not_sort" ||
       label == "ERROR:pi_codom_not_sort" ||
@@ -209,18 +205,14 @@ fn is_error_sort(t : Term) -> Bool {
 /// Maps error sentinel terms to human-readable diagnostics.
 fn explain_error(t : Term) -> String {
   match t {
-    Term::Sort("ERROR:unbound") => "variable not found in context"
-    Term::Sort("ERROR:pi_domain_not_sort") =>
-      "Pi domain is not a valid universe"
-    Term::Sort("ERROR:pi_codom_not_sort") =>
-      "Pi codomain is not a valid universe"
-    Term::Sort("ERROR:lambda_ann_not_type") =>
-      "lambda annotation is not a valid type"
-    Term::Sort("ERROR:arg_mismatch") =>
+    Sort("ERROR:unbound") => "variable not found in context"
+    Sort("ERROR:pi_domain_not_sort") => "Pi domain is not a valid universe"
+    Sort("ERROR:pi_codom_not_sort") => "Pi codomain is not a valid universe"
+    Sort("ERROR:lambda_ann_not_type") => "lambda annotation is not a valid type"
+    Sort("ERROR:arg_mismatch") =>
       "function argument type does not match parameter"
-    Term::Sort("ERROR:not_function") => "attempted to apply a non-function term"
-    Term::Sort("ERROR:let_value_mismatch") =>
-      "let value does not match declared type"
+    Sort("ERROR:not_function") => "attempted to apply a non-function term"
+    Sort("ERROR:let_value_mismatch") => "let value does not match declared type"
     _ => "unknown error"
   }
 }
@@ -295,8 +287,8 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
     }
     let name = tokens[1]
     match parse_term(tokens, 2) {
-      ParseResult::Err(msg) => ok_step(state, "Parse error: " + msg)
-      ParseResult::Ok(term, next) => {
+      Err(msg) => ok_step(state, "Parse error: " + msg)
+      Ok(term, next) => {
         if next != tokens.length() {
           let extra = tokens[next]
           return ok_step(state, "Unexpected extra token: " + extra)
@@ -316,8 +308,8 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
     }
   } else if cmd == "infer" {
     match parse_term(tokens, 1) {
-      ParseResult::Err(msg) => ok_step(state, "Parse error: " + msg)
-      ParseResult::Ok(term, next) => {
+      Err(msg) => ok_step(state, "Parse error: " + msg)
+      Ok(term, next) => {
         if next != tokens.length() {
           return ok_step(state, "Unexpected extra token in infer command")
         }
@@ -331,8 +323,8 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
     }
   } else if cmd == "normalize" {
     match parse_term(tokens, 1) {
-      ParseResult::Err(msg) => ok_step(state, "Parse error: " + msg)
-      ParseResult::Ok(term, next) => {
+      Err(msg) => ok_step(state, "Parse error: " + msg)
+      Ok(term, next) => {
         if next != tokens.length() {
           return ok_step(state, "Unexpected extra token in normalize command")
         }
@@ -342,8 +334,8 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
     }
   } else if cmd == "whnf" {
     match parse_term(tokens, 1) {
-      ParseResult::Err(msg) => ok_step(state, "Parse error: " + msg)
-      ParseResult::Ok(term, next) => {
+      Err(msg) => ok_step(state, "Parse error: " + msg)
+      Ok(term, next) => {
         if next != tokens.length() {
           return ok_step(state, "Unexpected extra token in whnf command")
         }

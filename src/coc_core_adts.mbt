@@ -19,7 +19,7 @@ enum Term {
 ///
 /// * `name`: binder name to lift into the AST.
 ///
-/// Returns a `Term::Var` with the provided binder name.
+/// Returns a `Var` with the provided binder name.
 ///
 /// Example:
 ///
@@ -28,7 +28,7 @@ enum Term {
 /// inspect(pp(x), content="Var(x)")
 /// ```
 pub fn mk_var(name : String) -> Term {
-  Term::Var(name)
+  Var(name)
 }
 
 ///|
@@ -38,7 +38,7 @@ pub fn mk_var(name : String) -> Term {
 ///
 /// * `level`: textual universe level such as "0" or "1".
 ///
-/// Returns a `Term::Sort` describing the given universe level.
+/// Returns a `Sort` describing the given universe level.
 ///
 /// Example:
 ///
@@ -47,7 +47,7 @@ pub fn mk_var(name : String) -> Term {
 /// inspect(pp(u0), content="Sort(0)")
 /// ```
 pub fn mk_sort(level : String) -> Term {
-  Term::Sort(level)
+  Sort(level)
 }
 
 ///|
@@ -59,7 +59,7 @@ pub fn mk_sort(level : String) -> Term {
 /// * `domain`: parameter type.
 /// * `codom`: result type, potentially depending on `vname`.
 ///
-/// Returns a `Term::Pi` node representing the dependent function type.
+/// Returns a `Pi` node representing the dependent function type.
 ///
 /// Example:
 ///
@@ -68,7 +68,7 @@ pub fn mk_sort(level : String) -> Term {
 /// inspect(pp(ty), content="Pi(x,Sort(0),Var(x))")
 /// ```
 pub fn mk_pi(vname : String, domain : Term, codom : Term) -> Term {
-  Term::Pi(vname, domain, codom)
+  Pi(vname, domain, codom)
 }
 
 ///|
@@ -80,7 +80,7 @@ pub fn mk_pi(vname : String, domain : Term, codom : Term) -> Term {
 /// * `ty`: explicit type annotation for the parameter.
 /// * `body`: lambda body where `vname` may appear.
 ///
-/// Returns a `Term::Lam` representing the lambda expression.
+/// Returns a `Lam` representing the lambda expression.
 ///
 /// Example:
 ///
@@ -89,7 +89,7 @@ pub fn mk_pi(vname : String, domain : Term, codom : Term) -> Term {
 /// inspect(pp(lam), content="Lam(x,Sort(0),Var(x))")
 /// ```
 pub fn mk_lam(vname : String, ty : Term, body : Term) -> Term {
-  Term::Lam(vname, ty, body)
+  Lam(vname, ty, body)
 }
 
 ///|
@@ -100,7 +100,7 @@ pub fn mk_lam(vname : String, ty : Term, body : Term) -> Term {
 /// * `fn_`: function being applied.
 /// * `arg`: argument supplied to the function.
 ///
-/// Returns a `Term::App` node.
+/// Returns a `App` node.
 ///
 /// Example:
 ///
@@ -109,7 +109,7 @@ pub fn mk_lam(vname : String, ty : Term, body : Term) -> Term {
 /// inspect(pp(app), content="App(Var(f),Var(x))")
 /// ```
 pub fn mk_app(fn_ : Term, arg : Term) -> Term {
-  Term::App(fn_, arg)
+  App(fn_, arg)
 }
 
 ///|
@@ -122,7 +122,7 @@ pub fn mk_app(fn_ : Term, arg : Term) -> Term {
 /// * `val`: definition assigned to the binding.
 /// * `body`: context where the binding is available.
 ///
-/// Returns a `Term::Let` representing the binding.
+/// Returns a `Let` representing the binding.
 ///
 /// Example:
 ///
@@ -131,7 +131,7 @@ pub fn mk_app(fn_ : Term, arg : Term) -> Term {
 /// inspect(pp(let_term), content="Let(x,Sort(0),Var(y),Var(x))")
 /// ```
 pub fn mk_let(vname : String, ty : Term, val : Term, body : Term) -> Term {
-  Term::Let(vname, ty, val, body)
+  Let(vname, ty, val, body)
 }
 
 ///|
@@ -151,12 +151,12 @@ pub fn mk_let(vname : String, ty : Term, val : Term, body : Term) -> Term {
 /// ```
 pub fn pp(t : Term) -> String {
   match t {
-    Term::Var(n) => "Var(" + n + ")"
-    Term::Sort(l) => "Sort(" + l + ")"
-    Term::Pi(n, d, c) => "Pi(" + n + "," + pp(d) + "," + pp(c) + ")"
-    Term::Lam(n, ty, b) => "Lam(" + n + "," + pp(ty) + "," + pp(b) + ")"
-    Term::App(f, a) => "App(" + pp(f) + "," + pp(a) + ")"
-    Term::Let(n, ty, v, b) =>
+    Var(n) => "Var(" + n + ")"
+    Sort(l) => "Sort(" + l + ")"
+    Pi(n, d, c) => "Pi(" + n + "," + pp(d) + "," + pp(c) + ")"
+    Lam(n, ty, b) => "Lam(" + n + "," + pp(ty) + "," + pp(b) + ")"
+    App(f, a) => "App(" + pp(f) + "," + pp(a) + ")"
+    Let(n, ty, v, b) =>
       "Let(" + n + "," + pp(ty) + "," + pp(v) + "," + pp(b) + ")"
   }
 }
@@ -178,14 +178,14 @@ pub fn pp(t : Term) -> String {
 /// ```
 pub fn term_eq(a : Term, b : Term) -> Bool {
   match (a, b) {
-    (Term::Var(x), Term::Var(y)) => x == y
-    (Term::Sort(x), Term::Sort(y)) => x == y
-    (Term::Pi(n1, d1, c1), Term::Pi(n2, d2, c2)) =>
+    (Var(x), Var(y)) => x == y
+    (Sort(x), Sort(y)) => x == y
+    (Pi(n1, d1, c1), Pi(n2, d2, c2)) =>
       n1 == n2 && term_eq(d1, d2) && term_eq(c1, c2)
-    (Term::Lam(n1, t1, b1), Term::Lam(n2, t2, b2)) =>
+    (Lam(n1, t1, b1), Lam(n2, t2, b2)) =>
       n1 == n2 && term_eq(t1, t2) && term_eq(b1, b2)
-    (Term::App(f1, a1), Term::App(f2, a2)) => term_eq(f1, f2) && term_eq(a1, a2)
-    (Term::Let(n1, t1, v1, b1), Term::Let(n2, t2, v2, b2)) =>
+    (App(f1, a1), App(f2, a2)) => term_eq(f1, f2) && term_eq(a1, a2)
+    (Let(n1, t1, v1, b1), Let(n2, t2, v2, b2)) =>
       n1 == n2 && term_eq(t1, t2) && term_eq(v1, v2) && term_eq(b1, b2)
     _ => false
   }
@@ -210,31 +210,26 @@ pub fn term_eq(a : Term, b : Term) -> Bool {
 /// ```
 pub fn subst(t : Term, vname : String, by : Term) -> Term {
   match t {
-    Term::Var(n) => if n == vname { by } else { Term::Var(n) }
-    Term::Sort(l) => Term::Sort(l)
-    Term::Pi(n, d, c) =>
+    Var(n) => if n == vname { by } else { Var(n) }
+    Sort(l) => Sort(l)
+    Pi(n, d, c) =>
       if n == vname {
-        Term::Pi(n, subst(d, vname, by), c)
+        Pi(n, subst(d, vname, by), c)
       } else {
-        Term::Pi(n, subst(d, vname, by), subst(c, vname, by))
+        Pi(n, subst(d, vname, by), subst(c, vname, by))
       }
-    Term::Lam(n, ty, body) =>
+    Lam(n, ty, body) =>
       if n == vname {
-        Term::Lam(n, subst(ty, vname, by), body)
+        Lam(n, subst(ty, vname, by), body)
       } else {
-        Term::Lam(n, subst(ty, vname, by), subst(body, vname, by))
+        Lam(n, subst(ty, vname, by), subst(body, vname, by))
       }
-    Term::App(f, a) => Term::App(subst(f, vname, by), subst(a, vname, by))
-    Term::Let(n, ty, v, b) =>
+    App(f, a) => App(subst(f, vname, by), subst(a, vname, by))
+    Let(n, ty, v, b) =>
       if n == vname {
-        Term::Let(n, subst(ty, vname, by), subst(v, vname, by), b)
+        Let(n, subst(ty, vname, by), subst(v, vname, by), b)
       } else {
-        Term::Let(
-          n,
-          subst(ty, vname, by),
-          subst(v, vname, by),
-          subst(b, vname, by),
-        )
+        Let(n, subst(ty, vname, by), subst(v, vname, by), subst(b, vname, by))
       }
   }
 }
@@ -257,10 +252,10 @@ pub fn subst(t : Term, vname : String, by : Term) -> Term {
 /// ```
 pub fn whnf(t : Term) -> Term {
   match t {
-    Term::App(fn_, arg) =>
+    App(fn_, arg) =>
       match fn_ {
-        Term::Lam(n, _ty, body) => subst(body, n, arg)
-        _ => Term::App(fn_, arg)
+        Lam(n, _ty, body) => subst(body, n, arg)
+        _ => App(fn_, arg)
       }
     _ => t
   }
@@ -379,7 +374,7 @@ pub fn lookup(ctx : Array[Binding], name : String) -> Term {
     }
   }
   // return an obvious error sentinel term instead of raising for now
-  Term::Sort("ERROR:unbound")
+  Sort("ERROR:unbound")
 }
 
 // naive level successor for universe levels represented as simple strings
@@ -424,49 +419,49 @@ pub fn level_succ(l : String) -> String {
 /// ```
 pub fn type_infer(ctx : Array[Binding], t : Term) -> Term {
   match t {
-    Term::Var(n) => lookup(ctx, n)
-    Term::Sort(l) => Term::Sort(level_succ(l))
-    Term::Pi(n, dom, cod) => {
+    Var(n) => lookup(ctx, n)
+    Sort(l) => Sort(level_succ(l))
+    Pi(n, dom, cod) => {
       let dty = type_infer(ctx, dom)
       match dty {
-        Term::Sort(_) => ()
-        _ => return Term::Sort("ERROR:pi_domain_not_sort")
+        Sort(_) => ()
+        _ => return Sort("ERROR:pi_domain_not_sort")
       }
       let ctx2 = extend(ctx, n, dom)
       let cty = type_infer(ctx2, cod)
       match cty {
-        Term::Sort(_) => ()
-        _ => return Term::Sort("ERROR:pi_codom_not_sort")
+        Sort(_) => ()
+        _ => return Sort("ERROR:pi_codom_not_sort")
       }
-      Term::Sort("1")
+      Sort("1")
     }
-    Term::Lam(n, ty, body) => {
+    Lam(n, ty, body) => {
       let tty = type_infer(ctx, ty)
       match tty {
-        Term::Sort(_) => ()
-        _ => return Term::Sort("ERROR:lambda_ann_not_type")
+        Sort(_) => ()
+        _ => return Sort("ERROR:lambda_ann_not_type")
       }
       let ctx2 = extend(ctx, n, ty)
       let bty = type_infer(ctx2, body)
-      Term::Pi(n, ty, bty)
+      Pi(n, ty, bty)
     }
-    Term::App(f, a) => {
+    App(f, a) => {
       let ft = type_infer(ctx, f)
       match ft {
-        Term::Pi(n, dom, cod) => {
+        Pi(n, dom, cod) => {
           let at = type_infer(ctx, a)
           if !convertible(at, dom) {
-            return Term::Sort("ERROR:arg_mismatch")
+            return Sort("ERROR:arg_mismatch")
           }
           subst(cod, n, a)
         }
-        _ => Term::Sort("ERROR:not_function")
+        _ => Sort("ERROR:not_function")
       }
     }
-    Term::Let(n, ty, v, body) => {
+    Let(n, ty, v, body) => {
       let vt = type_infer(ctx, v)
       if !convertible(vt, ty) {
-        return Term::Sort("ERROR:let_value_mismatch")
+        return Sort("ERROR:let_value_mismatch")
       }
       let ctx2 = extend(ctx, n, ty)
       type_infer(ctx2, body)

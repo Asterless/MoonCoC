@@ -22,10 +22,13 @@ pub struct ReplStep {
 
 ///|
 /// Internal result type for parsing prefix-encoded terms.
-priv enum ParseResult {
-  Ok(Term, Int)
-  Err(String)
+priv struct ParseResult {
+  term : Term
+  next : Int
 }
+
+///|
+priv suberror ParseError String
 
 ///|
 /// Creates a fresh REPL state with an empty context and no definitions.
@@ -56,77 +59,60 @@ fn split_tokens(line : String) -> Array[String] {
 
 ///|
 /// Recursively parses a term from the token stream starting at the provided index.
-fn parse_term(tokens : Array[String], start : Int) -> ParseResult {
+fn parse_term(
+  tokens : Array[String],
+  start : Int,
+) -> ParseResult raise ParseError {
   if start >= tokens.length() {
-    return Err("unexpected end of term")
+    raise ParseError("unexpected end of term")
   }
   let head = tokens[start]
   if head == "var" {
     if start + 1 >= tokens.length() {
-      Err("expected name after 'var'")
+      raise ParseError("expected name after 'var'")
     } else {
-      Ok(mk_var(tokens[start + 1]), start + 2)
+      { term: mk_var(tokens[start + 1]), next: start + 2 }
     }
   } else if head == "sort" {
     if start + 1 >= tokens.length() {
-      Err("expected level after 'sort'")
+      raise ParseError("expected level after 'sort'")
     } else {
-      Ok(mk_sort(tokens[start + 1]), start + 2)
+      { term: mk_sort(tokens[start + 1]), next: start + 2 }
     }
   } else if head == "lam" {
     if start + 1 >= tokens.length() {
-      return Err("expected parameter name after 'lam'")
+      raise ParseError("expected parameter name after 'lam'")
     }
     let name = tokens[start + 1]
-    match parse_term(tokens, start + 2) {
-      Err(msg) => Err(msg)
-      Ok(ty, next) =>
-        match parse_term(tokens, next) {
-          Err(msg) => Err(msg)
-          Ok(body, next2) => Ok(mk_lam(name, ty, body), next2)
-        }
-    }
+    let ty_res = parse_term(tokens, start + 2)
+    let body_res = parse_term(tokens, ty_res.next)
+    { term: mk_lam(name, ty_res.term, body_res.term), next: body_res.next }
   } else if head == "pi" {
     if start + 1 >= tokens.length() {
-      return Err("expected parameter name after 'pi'")
+      raise ParseError("expected parameter name after 'pi'")
     }
     let name = tokens[start + 1]
-    match parse_term(tokens, start + 2) {
-      Err(msg) => Err(msg)
-      Ok(dom, next) =>
-        match parse_term(tokens, next) {
-          Err(msg) => Err(msg)
-          Ok(cod, next2) => Ok(mk_pi(name, dom, cod), next2)
-        }
-    }
+    let dom_res = parse_term(tokens, start + 2)
+    let cod_res = parse_term(tokens, dom_res.next)
+    { term: mk_pi(name, dom_res.term, cod_res.term), next: cod_res.next }
   } else if head == "app" {
-    match parse_term(tokens, start + 1) {
-      Err(msg) => Err(msg)
-      Ok(fn_, next) =>
-        match parse_term(tokens, next) {
-          Err(msg) => Err(msg)
-          Ok(arg, next2) => Ok(mk_app(fn_, arg), next2)
-        }
-    }
+    let fn_res = parse_term(tokens, start + 1)
+    let arg_res = parse_term(tokens, fn_res.next)
+    { term: mk_app(fn_res.term, arg_res.term), next: arg_res.next }
   } else if head == "let" {
     if start + 1 >= tokens.length() {
-      return Err("expected name after 'let'")
+      raise ParseError("expected name after 'let'")
     }
     let name = tokens[start + 1]
-    match parse_term(tokens, start + 2) {
-      Err(msg) => Err(msg)
-      Ok(ty, next) =>
-        match parse_term(tokens, next) {
-          Err(msg) => Err(msg)
-          Ok(val, next2) =>
-            match parse_term(tokens, next2) {
-              Err(msg) => Err(msg)
-              Ok(body, next3) => Ok(mk_let(name, ty, val, body), next3)
-            }
-        }
+    let ty_res = parse_term(tokens, start + 2)
+    let val_res = parse_term(tokens, ty_res.next)
+    let body_res = parse_term(tokens, val_res.next)
+    {
+      term: mk_let(name, ty_res.term, val_res.term, body_res.term),
+      next: body_res.next,
     }
   } else {
-    Err("unknown term constructor '" + head + "'")
+    raise ParseError("unknown term constructor '" + head + "'")
   }
 }
 
@@ -182,38 +168,6 @@ fn expand_defs(term : Term, defs : Array[Definition], depth : Int) -> Term {
         expand_defs(val, defs, depth),
         expand_defs(body, defs, depth),
       )
-  }
-}
-
-///|
-/// Detects whether a term is one of the stringly-typed error sentinels.
-fn is_error_sort(t : Term) -> Bool {
-  match t {
-    Sort(label) =>
-      label == "ERROR:unbound" ||
-      label == "ERROR:pi_domain_not_sort" ||
-      label == "ERROR:pi_codom_not_sort" ||
-      label == "ERROR:lambda_ann_not_type" ||
-      label == "ERROR:arg_mismatch" ||
-      label == "ERROR:not_function" ||
-      label == "ERROR:let_value_mismatch"
-    _ => false
-  }
-}
-
-///|
-/// Maps error sentinel terms to human-readable diagnostics.
-fn explain_error(t : Term) -> String {
-  match t {
-    Sort("ERROR:unbound") => "variable not found in context"
-    Sort("ERROR:pi_domain_not_sort") => "Pi domain is not a valid universe"
-    Sort("ERROR:pi_codom_not_sort") => "Pi codomain is not a valid universe"
-    Sort("ERROR:lambda_ann_not_type") => "lambda annotation is not a valid type"
-    Sort("ERROR:arg_mismatch") =>
-      "function argument type does not match parameter"
-    Sort("ERROR:not_function") => "attempted to apply a non-function term"
-    Sort("ERROR:let_value_mismatch") => "let value does not match declared type"
-    _ => "unknown error"
   }
 }
 
@@ -283,65 +237,65 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
     ok_step(repl_init(), "state cleared")
   } else if cmd == "def" {
     if tokens.length() < 3 {
-      return ok_step(state, "Usage: def <name> <term...>")
-    }
-    let name = tokens[1]
-    match parse_term(tokens, 2) {
-      Err(msg) => ok_step(state, "Parse error: " + msg)
-      Ok(term, next) => {
-        if next != tokens.length() {
-          let extra = tokens[next]
-          return ok_step(state, "Unexpected extra token: " + extra)
-        }
-        let ty = type_infer(state.ctx, term)
-        if is_error_sort(ty) {
-          ok_step(state, "Type error: " + explain_error(ty))
+      ok_step(state, "Usage: def <name> <term...>")
+    } else {
+      let name = tokens[1]
+      try {
+        let res = parse_term(tokens, 2)
+        if res.next != tokens.length() {
+          let extra = tokens[res.next]
+          ok_step(state, "Unexpected extra token: " + extra)
         } else {
-          let def = { name, term, ty }
+          // Now we call type_infer inside the same try block
+          let ty = type_infer(state.ctx, res.term)
+          let def = { name, term: res.term, ty }
           let defs = state.defs
           defs.push(def)
           let ctx = extend(state.ctx, name, ty)
           let new_state = { ctx, defs }
           ok_step(new_state, "Defined: " + name + " : " + pp(ty))
         }
+      } catch {
+        ParseError(msg) => ok_step(state, "Parse error: " + msg)
+        err => ok_step(state, "Type error: " + explain_error(err))
       }
     }
   } else if cmd == "infer" {
-    match parse_term(tokens, 1) {
-      Err(msg) => ok_step(state, "Parse error: " + msg)
-      Ok(term, next) => {
-        if next != tokens.length() {
-          return ok_step(state, "Unexpected extra token in infer command")
-        }
-        let ty = type_infer(state.ctx, term)
-        if is_error_sort(ty) {
-          ok_step(state, "Type error: " + explain_error(ty))
-        } else {
-          ok_step(state, pp(ty))
-        }
+    try {
+      let res = parse_term(tokens, 1)
+      if res.next != tokens.length() {
+        ok_step(state, "Unexpected extra token in infer command")
+      } else {
+        let ty = type_infer(state.ctx, res.term)
+        ok_step(state, pp(ty))
       }
+    } catch {
+      ParseError(msg) => ok_step(state, "Parse error: " + msg)
+      err => ok_step(state, "Type error: " + explain_error(err))
     }
   } else if cmd == "normalize" {
-    match parse_term(tokens, 1) {
-      Err(msg) => ok_step(state, "Parse error: " + msg)
-      Ok(term, next) => {
-        if next != tokens.length() {
-          return ok_step(state, "Unexpected extra token in normalize command")
-        }
-        let expanded = expand_defs(term, state.defs, 0)
+    try {
+      let res = parse_term(tokens, 1)
+      if res.next != tokens.length() {
+        ok_step(state, "Unexpected extra token in normalize command")
+      } else {
+        let expanded = expand_defs(res.term, state.defs, 0)
         ok_step(state, pp(normalize(expanded)))
       }
+    } catch {
+      ParseError(msg) => ok_step(state, "Parse error: " + msg)
     }
   } else if cmd == "whnf" {
-    match parse_term(tokens, 1) {
-      Err(msg) => ok_step(state, "Parse error: " + msg)
-      Ok(term, next) => {
-        if next != tokens.length() {
-          return ok_step(state, "Unexpected extra token in whnf command")
-        }
-        let expanded = expand_defs(term, state.defs, 0)
+    try {
+      let res = parse_term(tokens, 1)
+      if res.next != tokens.length() {
+        ok_step(state, "Unexpected extra token in whnf command")
+      } else {
+        let expanded = expand_defs(res.term, state.defs, 0)
         ok_step(state, pp(whnf(expanded)))
       }
+    } catch {
+      ParseError(msg) => ok_step(state, "Parse error: " + msg)
     }
   } else {
     ok_step(state, "Unknown command: " + cmd)
@@ -370,4 +324,144 @@ fn run_script(
     outs.push(step.output)
     run_script(lines, idx + 1, step.state, outs)
   }
+}
+
+///|
+test "parse_term_success" {
+  // Test successful parsing of a simple term
+  let tokens1 = ["var", "x"]
+  let res = parse_term(tokens1, 0)
+  inspect(res.next, content="2")
+
+  // Test successful parsing of a complex term
+  let tokens2 = ["lam", "x", "sort", "Type", "var", "x"]
+  let res = parse_term(tokens2, 0)
+  inspect(res.next, content="6")
+}
+
+///|
+test "parse_term_error_eof" {
+  // Test error: unexpected end of term
+  let tokens = []
+  try {
+    let _ = parse_term(tokens, 0)
+    inspect(
+      "Expected a parse error, but none was raised.",
+      content="parse-eof-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="unexpected end of term")
+    _ => ()
+  }
+}
+
+///|
+test "parse_term_error_missing_name" {
+  // Test error: expected name after 'var'
+  let tokens = ["var"]
+  try {
+    let _ = parse_term(tokens, 0)
+    inspect(
+      "Expected a parse error, but none was raised.",
+      content="parse-no-name-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="expected name after 'var'")
+    _ => ()
+  }
+}
+
+///|
+test "parse_term_error_unknown_constructor" {
+  // Test error: unknown term constructor
+  let tokens = ["foo", "bar"]
+  try {
+    let _ = parse_term(tokens, 0)
+    inspect(
+      "Expected a parse error, but none was raised.",
+      content="parse-unknown-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="unknown term constructor 'foo'")
+    _ => ()
+  }
+}
+
+///|
+test "repl_process_help" {
+  let initial_state = repl_init()
+  let step = repl_process(initial_state, "help")
+  inspect(
+    step.output,
+    content="help            show supported commands\nctx             print the current context\ndefs            list stored definitions\ndef <name> <term...>   define a term using prefix syntax\ninfer <term...>        infer the type of a term\nnormalize <term...>    normalize a term to beta normal form\nwhnf <term...>         reduce a term to weak-head normal form\nclear           reset context and definitions",
+  )
+}
+
+///|
+test "repl_process_initial_state" {
+  let initial_state = repl_init()
+  // Test "ctx" on initial state
+  let step_ctx = repl_process(initial_state, "ctx")
+  inspect(step_ctx.output, content="(empty context)")
+
+  // Test "defs" on initial state
+  let step_defs = repl_process(initial_state, "defs")
+  inspect(step_defs.output, content="(no definitions)")
+}
+
+///|
+test "repl_process_def" {
+  let initial_state = repl_init()
+  // Test successful "def"
+  let step1 = repl_process(initial_state, "def my_type sort 0")
+  inspect(step1.output, content="Defined: my_type : Sort(1)")
+
+  // Test "defs" after def
+  let step2 = repl_process(step1.state, "defs")
+  inspect(step2.output, content="my_type : Sort(1) = Sort(0)")
+
+  // Test "ctx" after def
+  let step3 = repl_process(step1.state, "ctx")
+  inspect(step3.output, content="my_type : Sort(1)")
+}
+
+///|
+test "repl_process_errors" {
+  let initial_state = repl_init()
+  // Test "infer" with unbound variable (type error)
+  let step_type_error = repl_process(initial_state, "infer var x")
+  inspect(
+    step_type_error.output,
+    content="Type error: variable not found in context",
+  )
+
+  // Test "def" with parse error
+  let step_parse_error = repl_process(initial_state, "def bad lam x")
+  inspect(
+    step_parse_error.output,
+    content="Parse error: unexpected end of term",
+  )
+}
+
+///|
+test "repl_process_clear" {
+  let initial_state = repl_init()
+  let step1 = repl_process(initial_state, "def my_type sort 0")
+  // Test "clear"
+  let step2 = repl_process(step1.state, "clear")
+  inspect(step2.output, content="state cleared")
+  inspect(step2.state.defs.length(), content="0")
+  inspect(step2.state.ctx.length(), content="0")
+}
+
+///|
+test "repl_process_unknown_and_empty" {
+  let initial_state = repl_init()
+  // Test unknown command
+  let step_unknown = repl_process(initial_state, "foo bar")
+  inspect(step_unknown.output, content="Unknown command: foo")
+
+  // Test empty input
+  let step_empty = repl_process(initial_state, "")
+  inspect(step_empty.output, content="")
 }

@@ -13,6 +13,42 @@ enum Term {
 }
 
 ///|
+pub suberror UnboundVariable
+
+///|
+pub suberror PiDomainNotSort
+
+///|
+pub suberror PiCodomNotSort
+
+///|
+pub suberror LambdaAnnNotType
+
+///|
+pub suberror ArgMismatch
+
+///|
+pub suberror NotFunction
+
+///|
+pub suberror LetValueMismatch
+
+///|
+/// Maps type errors to human-readable diagnostics.
+fn explain_error(err : Error) -> String {
+  match err {
+    UnboundVariable => "variable not found in context"
+    PiDomainNotSort => "Pi domain is not a valid universe"
+    PiCodomNotSort => "Pi codomain is not a valid universe"
+    LambdaAnnNotType => "lambda annotation is not a valid type"
+    ArgMismatch => "function argument type does not match parameter"
+    NotFunction => "attempted to apply a non-function term"
+    LetValueMismatch => "let value does not match declared type"
+    _ => "unknown type error"
+  }
+}
+
+///|
 /// Creates a variable term.
 ///
 /// Parameters:
@@ -359,7 +395,7 @@ pub fn extend(ctx : Array[Binding], name : String, ty : Term) -> Array[Binding] 
 /// * `ctx`: context to search.
 /// * `name`: variable name to locate.
 ///
-/// Returns the associated type or a sentinel sort when missing.
+/// Returns the associated type or raises a `TypeError` when missing.
 ///
 /// Example:
 ///
@@ -367,17 +403,17 @@ pub fn extend(ctx : Array[Binding], name : String, ty : Term) -> Array[Binding] 
 /// let ctx = extend(empty_ctx(), "x", mk_sort("0"))
 /// inspect(pp(lookup(ctx, "x")), content="Sort(0)")
 /// ```
-pub fn lookup(ctx : Array[Binding], name : String) -> Term {
+pub fn lookup(
+  ctx : Array[Binding],
+  name : String,
+) -> Term raise UnboundVariable {
   for b in ctx {
     if b.name == name {
       return b.ty
     }
   }
-  // return an obvious error sentinel term instead of raising for now
-  Sort("ERROR:unbound")
+  raise UnboundVariable
 }
-
-// naive level successor for universe levels represented as simple strings
 
 ///|
 /// Computes the successor universe label using a simple string scheme.
@@ -409,7 +445,7 @@ pub fn level_succ(l : String) -> String {
 /// * `ctx`: typing context.
 /// * `t`: term whose type should be derived.
 ///
-/// Returns the inferred type term or an error sentinel `Sort("ERROR:…")`.
+/// Returns the inferred type term or raises a `TypeError`.
 ///
 /// Example:
 ///
@@ -417,7 +453,7 @@ pub fn level_succ(l : String) -> String {
 /// let lam = mk_lam("x", mk_sort("0"), mk_var("x"))
 /// inspect(pp(type_infer(empty_ctx(), lam)), content="Pi(x,Sort(0),Sort(0))")
 /// ```
-pub fn type_infer(ctx : Array[Binding], t : Term) -> Term {
+pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise {
   match t {
     Var(n) => lookup(ctx, n)
     Sort(l) => Sort(level_succ(l))
@@ -425,13 +461,13 @@ pub fn type_infer(ctx : Array[Binding], t : Term) -> Term {
       let dty = type_infer(ctx, dom)
       match dty {
         Sort(_) => ()
-        _ => return Sort("ERROR:pi_domain_not_sort")
+        _ => raise PiDomainNotSort
       }
       let ctx2 = extend(ctx, n, dom)
       let cty = type_infer(ctx2, cod)
       match cty {
         Sort(_) => ()
-        _ => return Sort("ERROR:pi_codom_not_sort")
+        _ => raise PiCodomNotSort
       }
       Sort("1")
     }
@@ -439,7 +475,7 @@ pub fn type_infer(ctx : Array[Binding], t : Term) -> Term {
       let tty = type_infer(ctx, ty)
       match tty {
         Sort(_) => ()
-        _ => return Sort("ERROR:lambda_ann_not_type")
+        _ => raise LambdaAnnNotType
       }
       let ctx2 = extend(ctx, n, ty)
       let bty = type_infer(ctx2, body)
@@ -451,17 +487,17 @@ pub fn type_infer(ctx : Array[Binding], t : Term) -> Term {
         Pi(n, dom, cod) => {
           let at = type_infer(ctx, a)
           if !convertible(at, dom) {
-            return Sort("ERROR:arg_mismatch")
+            raise ArgMismatch
           }
           subst(cod, n, a)
         }
-        _ => Sort("ERROR:not_function")
+        _ => raise NotFunction
       }
     }
     Let(n, ty, v, body) => {
       let vt = type_infer(ctx, v)
       if !convertible(vt, ty) {
-        return Sort("ERROR:let_value_mismatch")
+        raise LetValueMismatch
       }
       let ctx2 = extend(ctx, n, ty)
       type_infer(ctx2, body)
@@ -483,8 +519,11 @@ pub fn tc_demo_infer_id() -> String {
   // simple identity: \x : Sort(0) . x
   let _id_ty = mk_pi("x", mk_sort("0"), mk_var("x"))
   let id = mk_lam("x", mk_sort("0"), mk_var("x"))
-  match type_infer(empty_ctx(), id) {
-    t => pp(t)
+  try {
+    let t = type_infer(empty_ctx(), id)
+    pp(t)
+  } catch {
+    err => "Type error: " + explain_error(err)
   }
 }
 
@@ -492,4 +531,89 @@ pub fn tc_demo_infer_id() -> String {
 test "tc_infer_id" {
   // check that inferring the simple identity returns Pi(x,Sort(0),Sort(0))
   inspect(tc_demo_infer_id(), content="Pi(x,Sort(0),Sort(0))")
+}
+
+///|
+test "type_errors" {
+  // UnboundVariable
+  try {
+    let _ = type_infer(empty_ctx(), mk_var("x"))
+
+  } catch {
+    e => inspect(explain_error(e), content="variable not found in context")
+  }
+
+  // PiDomainNotSort
+  try {
+    let term = mk_pi("x", mk_lam("y", mk_sort("0"), mk_var("y")), mk_sort("0"))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(explain_error(err), content="Pi domain is not a valid universe")
+  }
+
+  // PiCodomNotSort
+  try {
+    let term = mk_pi("x", mk_sort("0"), mk_lam("y", mk_sort("0"), mk_var("y")))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(explain_error(err), content="Pi codomain is not a valid universe")
+  }
+
+  // LambdaAnnNotType
+  try {
+    let term = mk_lam("x", mk_lam("y", mk_sort("0"), mk_var("y")), mk_var("x"))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="lambda annotation is not a valid type",
+      )
+  }
+
+  // ArgMismatch
+  try {
+    let fn_ = mk_lam("x", mk_sort("1"), mk_var("x"))
+    let arg = mk_sort("0")
+    let term = mk_app(fn_, arg)
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="function argument type does not match parameter",
+      )
+  }
+
+  // NotFunction
+  try {
+    let term = mk_app(mk_sort("0"), mk_sort("1"))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="attempted to apply a non-function term",
+      )
+  }
+
+  // LetValueMismatch
+  try {
+    let term = mk_let("x", mk_sort("1"), mk_sort("0"), mk_var("x"))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="let value does not match declared type",
+      )
+  }
 }

@@ -10,7 +10,7 @@ fn extend(Array[Binding], String, Term) -> Array[Binding]
 
 fn level_succ(String) -> String
 
-fn lookup(Array[Binding], String) -> Term
+fn lookup(Array[Binding], String) -> Term raise UnboundVariable
 
 fn mk_app(Term, Term) -> Term
 
@@ -42,11 +42,24 @@ fn tc_demo_infer_id() -> String
 
 fn term_eq(Term, Term) -> Bool
 
-fn type_infer(Array[Binding], Term) -> Term
+fn type_infer(Array[Binding], Term) -> Term raise
 
 fn whnf(Term) -> Term
 
 // Errors
+pub suberror ArgMismatch
+
+pub suberror LambdaAnnNotType
+
+pub suberror LetValueMismatch
+
+pub suberror NotFunction
+
+pub suberror PiCodomNotSort
+
+pub suberror PiDomainNotSort
+
+pub suberror UnboundVariable
 
 // Types and methods
 type Binding

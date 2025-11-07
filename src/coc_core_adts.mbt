@@ -459,24 +459,15 @@ pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise {
     Sort(l) => Sort(level_succ(l))
     Pi(n, dom, cod) => {
       let dty = type_infer(ctx, dom)
-      match dty {
-        Sort(_) => ()
-        _ => raise PiDomainNotSort
-      }
+      guard dty is Sort(_) else { raise PiDomainNotSort }
       let ctx2 = extend(ctx, n, dom)
       let cty = type_infer(ctx2, cod)
-      match cty {
-        Sort(_) => ()
-        _ => raise PiCodomNotSort
-      }
+      guard cty is Sort(_) else { raise PiCodomNotSort }
       Sort("1")
     }
     Lam(n, ty, body) => {
       let tty = type_infer(ctx, ty)
-      match tty {
-        Sort(_) => ()
-        _ => raise LambdaAnnNotType
-      }
+      guard tty is Sort(_) else { raise LambdaAnnNotType }
       let ctx2 = extend(ctx, n, ty)
       let bty = type_infer(ctx2, body)
       Pi(n, ty, bty)

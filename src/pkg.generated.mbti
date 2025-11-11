@@ -8,7 +8,7 @@ fn empty_ctx() -> Array[Binding]
 
 fn extend(Array[Binding], String, Term) -> Array[Binding]
 
-fn level_succ(String) -> String
+fn level_succ(Int) -> Int
 
 fn lookup(Array[Binding], String) -> Term raise UnboundVariable
 
@@ -20,7 +20,7 @@ fn mk_let(String, Term, Term, Term) -> Term
 
 fn mk_pi(String, Term, Term) -> Term
 
-fn mk_sort(String) -> Term
+fn mk_sort(Int) -> Term
 
 fn mk_var(String) -> Term
 

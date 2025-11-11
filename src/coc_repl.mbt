@@ -31,6 +31,18 @@ priv struct ParseResult {
 priv suberror ParseError String
 
 ///|
+/// Character code for '0', used in parsing sort levels.
+const ZERO_CODE : Int = 48
+
+///|
+/// Character code for '9', used in parsing sort levels.
+const NINE_CODE : Int = 57
+
+///|
+/// Maximum safe integer value for overflow checking (32-bit signed Int).
+const MAX_INT : Int = 2147483647
+
+///|
 /// Creates a fresh REPL state with an empty context and no definitions.
 pub fn repl_init() -> ReplState {
   let ctx = empty_ctx()
@@ -58,6 +70,30 @@ fn split_tokens(line : String) -> Array[String] {
 }
 
 ///|
+fn parse_sort_level(token : String) -> Int raise ParseError {
+  if token == "Type" {
+    return 0
+  }
+  let chars = token.to_array()
+  if chars.length() == 0 {
+    raise ParseError("invalid sort level: " + token)
+  }
+  let mut acc = 0
+  for ch in chars {
+    let code = ch.to_int()
+    if code < ZERO_CODE || code > NINE_CODE {
+      raise ParseError("invalid sort level: " + token)
+    }
+    let digit = code - ZERO_CODE
+    if acc > (MAX_INT - digit) / 10 {
+      raise ParseError("sort level too large: " + token)
+    }
+    acc = acc * 10 + digit
+  }
+  acc
+}
+
+///|
 /// Recursively parses a term from the token stream starting at the provided index.
 fn parse_term(
   tokens : Array[String],
@@ -77,7 +113,8 @@ fn parse_term(
     if start + 1 >= tokens.length() {
       raise ParseError("expected level after 'sort'")
     } else {
-      { term: mk_sort(tokens[start + 1]), next: start + 2 }
+      let level = parse_sort_level(tokens[start + 1])
+      { term: mk_sort(level), next: start + 2 }
     }
   } else if head == "lam" {
     if start + 1 >= tokens.length() {
@@ -323,6 +360,43 @@ fn run_script(
     let outs = outputs
     outs.push(step.output)
     run_script(lines, idx + 1, step.state, outs)
+  }
+}
+
+///|
+test "parse_sort_level_success" {
+  inspect(parse_sort_level("Type"), content="0")
+  inspect(parse_sort_level("7"), content="7")
+  inspect(parse_sort_level("42"), content="42")
+}
+
+///|
+test "parse_sort_level_error" {
+  try {
+    let _ = parse_sort_level("4a")
+    inspect(
+      "Expected a parse error, but none was raised.",
+      content="sort-level-invalid-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="invalid sort level: 4a")
+    _ => ()
+  }
+}
+
+///|
+test "parse_sort_level_overflow" {
+  // Test that very large numbers are rejected with overflow protection
+  try {
+    let _ = parse_sort_level("99999999999999999999")
+    inspect(
+      "Expected overflow error, but none was raised.",
+      content="sort-level-overflow-no-error",
+    )
+  } catch {
+    ParseError(msg) =>
+      inspect(msg, content="sort level too large: 99999999999999999999")
+    _ => ()
   }
 }
 

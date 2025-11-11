@@ -31,6 +31,18 @@ priv struct ParseResult {
 priv suberror ParseError String
 
 ///|
+/// Character code for '0', used in parsing sort levels.
+let zero_code : Int = "0".to_array()[0].to_int()
+
+///|
+/// Character code for '9', used in parsing sort levels.
+let nine_code : Int = "9".to_array()[0].to_int()
+
+///|
+/// Maximum safe integer value for overflow checking (32-bit signed Int).
+let max_int : Int = 2147483647
+
+///|
 /// Creates a fresh REPL state with an empty context and no definitions.
 pub fn repl_init() -> ReplState {
   let ctx = empty_ctx()
@@ -66,15 +78,17 @@ fn parse_sort_level(token : String) -> Int raise ParseError {
   if chars.length() == 0 {
     raise ParseError("invalid sort level: " + token)
   }
-  let zero_code = "0".to_array()[0].to_int()
-  let nine_code = "9".to_array()[0].to_int()
   let mut acc = 0
   for ch in chars {
     let code = ch.to_int()
     if code < zero_code || code > nine_code {
       raise ParseError("invalid sort level: " + token)
     }
-    acc = acc * 10 + (code - zero_code)
+    let digit = code - zero_code
+    if acc > (max_int - digit) / 10 {
+      raise ParseError("sort level too large: " + token)
+    }
+    acc = acc * 10 + digit
   }
   acc
 }

@@ -9,5 +9,6 @@
             "path": "oboard/readline",
             "alias": "rl"
         }
-    ]
+    ],
+    "alert-list": "-deprecated"
 }

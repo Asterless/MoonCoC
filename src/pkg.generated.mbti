@@ -10,6 +10,8 @@ fn explain_error(Error) -> String
 
 fn extend(Array[Binding], String, Term) -> Array[Binding]
 
+fn level_succ(Int) -> Int
+
 fn lookup(Array[Binding], String) -> Term raise UnboundVariable
 
 fn mk_app(Term, Term) -> Term

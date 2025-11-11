@@ -61,7 +61,7 @@ pub impl Show for Term with to_string(t : Term) -> String {
 
 ///|
 pub impl Show for Term with output(t : Term, logger : &Logger) -> Unit {
-  logger.write_string(Term::to_string(t))
+  logger.write_string(t.to_string())
 }
 
 ///|

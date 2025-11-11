@@ -32,15 +32,15 @@ priv suberror ParseError String
 
 ///|
 /// Character code for '0', used in parsing sort levels.
-let zero_code : Int = "0".to_array()[0].to_int()
+const ZERO_CODE : Int = 48
 
 ///|
 /// Character code for '9', used in parsing sort levels.
-let nine_code : Int = "9".to_array()[0].to_int()
+const NINE_CODE : Int = 57
 
 ///|
 /// Maximum safe integer value for overflow checking (32-bit signed Int).
-let max_int : Int = 2147483647
+const MAX_INT : Int = 2147483647
 
 ///|
 /// Creates a fresh REPL state with an empty context and no definitions.
@@ -81,11 +81,11 @@ fn parse_sort_level(token : String) -> Int raise ParseError {
   let mut acc = 0
   for ch in chars {
     let code = ch.to_int()
-    if code < zero_code || code > nine_code {
+    if code < ZERO_CODE || code > NINE_CODE {
       raise ParseError("invalid sort level: " + token)
     }
-    let digit = code - zero_code
-    if acc > (max_int - digit) / 10 {
+    let digit = code - ZERO_CODE
+    if acc > (MAX_INT - digit) / 10 {
       raise ParseError("sort level too large: " + token)
     }
     acc = acc * 10 + digit

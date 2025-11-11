@@ -6,6 +6,8 @@ fn convertible(Term, Term) -> Bool
 
 fn empty_ctx() -> Array[Binding]
 
+fn explain_error(Error) -> String
+
 fn extend(Array[Binding], String, Term) -> Array[Binding]
 
 fn level_succ(Int) -> Int
@@ -25,8 +27,6 @@ fn mk_sort(Int) -> Term
 fn mk_var(String) -> Term
 
 fn normalize(Term) -> Term
-
-fn pp(Term) -> String
 
 fn repl_help() -> String
 
@@ -80,6 +80,7 @@ pub struct ReplStep {
 
 type Term
 impl Eq for Term
+impl Show for Term
 
 // Type aliases
 

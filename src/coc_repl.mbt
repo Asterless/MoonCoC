@@ -385,6 +385,21 @@ test "parse_sort_level_error" {
 }
 
 ///|
+test "parse_sort_level_overflow" {
+  // Test that very large numbers are rejected with overflow protection
+  try {
+    let _ = parse_sort_level("99999999999999999999")
+    inspect(
+      "Expected overflow error, but none was raised.",
+      content="sort-level-overflow-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="sort level too large: 99999999999999999999")
+    _ => ()
+  }
+}
+
+///|
 test "parse_term_success" {
   // Test successful parsing of a simple term
   let tokens1 = ["var", "x"]

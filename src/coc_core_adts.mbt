@@ -9,6 +9,35 @@ enum Term {
 }
 
 ///|
+/// Tests structural equality between two terms.
+///
+/// Parameters:
+///
+/// * `a`: first term.
+/// * `b`: second term.
+///
+/// Returns `true` when the terms are syntactically identical.
+///
+/// Example:
+///
+/// ```moonbit
+/// inspect(mk_var("x") == mk_var("x"), content="true")
+/// inspect(mk_var("x") == mk_var("y"), content="false")
+/// ```
+pub impl Eq for Term with equal(self : Term, other : Term) -> Bool {
+  match (self, other) {
+    (Var(x), Var(y)) => x == y
+    (Sort(x), Sort(y)) => x == y
+    (Pi(n1, d1, c1), Pi(n2, d2, c2)) => n1 == n2 && d1 == d2 && c1 == c2
+    (Lam(n1, t1, b1), Lam(n2, t2, b2)) => n1 == n2 && t1 == t2 && b1 == b2
+    (App(f1, a1), App(f2, a2)) => f1 == f2 && a1 == a2
+    (Let(n1, t1, v1, b1), Let(n2, t2, v2, b2)) =>
+      n1 == n2 && t1 == t2 && v1 == v2 && b1 == b2
+    _ => false
+  }
+}
+
+///|
 pub suberror UnboundVariable
 
 ///|
@@ -194,36 +223,6 @@ pub fn pp(t : Term) -> String {
 }
 
 ///|
-/// Tests structural equality between two terms.
-///
-/// Parameters:
-///
-/// * `a`: first term.
-/// * `b`: second term.
-///
-/// Returns `true` when the terms are syntactically identical.
-///
-/// Example:
-///
-/// ```moonbit
-/// inspect(term_eq(mk_var("x"), mk_var("x")), content="true")
-/// ```
-pub fn term_eq(a : Term, b : Term) -> Bool {
-  match (a, b) {
-    (Var(x), Var(y)) => x == y
-    (Sort(x), Sort(y)) => x == y
-    (Pi(n1, d1, c1), Pi(n2, d2, c2)) =>
-      n1 == n2 && term_eq(d1, d2) && term_eq(c1, c2)
-    (Lam(n1, t1, b1), Lam(n2, t2, b2)) =>
-      n1 == n2 && term_eq(t1, t2) && term_eq(b1, b2)
-    (App(f1, a1), App(f2, a2)) => term_eq(f1, f2) && term_eq(a1, a2)
-    (Let(n1, t1, v1, b1), Let(n2, t2, v2, b2)) =>
-      n1 == n2 && term_eq(t1, t2) && term_eq(v1, v2) && term_eq(b1, b2)
-    _ => false
-  }
-}
-
-///|
 /// Performs capture-avoiding substitution.
 ///
 /// Parameters:
@@ -310,7 +309,7 @@ pub fn whnf(t : Term) -> Term {
 /// ```
 pub fn normalize(t : Term) -> Term {
   let cur = whnf(t)
-  if term_eq(cur, t) {
+  if cur == t {
     t
   } else {
     normalize(cur)
@@ -335,7 +334,7 @@ pub fn normalize(t : Term) -> Term {
 /// inspect(convertible(app, mk_var("y")), content="true")
 /// ```
 pub fn convertible(a : Term, b : Term) -> Bool {
-  term_eq(normalize(a), normalize(b))
+  normalize(a) == normalize(b)
 }
 
 ///|

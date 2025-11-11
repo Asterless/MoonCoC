@@ -58,6 +58,28 @@ fn split_tokens(line : String) -> Array[String] {
 }
 
 ///|
+fn parse_sort_level(token : String) -> Int raise ParseError {
+  if token == "Type" {
+    return 0
+  }
+  let chars = token.to_array()
+  if chars.length() == 0 {
+    raise ParseError("invalid sort level: " + token)
+  }
+  let zero_code = "0".to_array()[0].to_int()
+  let nine_code = "9".to_array()[0].to_int()
+  let mut acc = 0
+  for ch in chars {
+    let code = ch.to_int()
+    if code < zero_code || code > nine_code {
+      raise ParseError("invalid sort level: " + token)
+    }
+    acc = acc * 10 + (code - zero_code)
+  }
+  acc
+}
+
+///|
 /// Recursively parses a term from the token stream starting at the provided index.
 fn parse_term(
   tokens : Array[String],
@@ -77,7 +99,8 @@ fn parse_term(
     if start + 1 >= tokens.length() {
       raise ParseError("expected level after 'sort'")
     } else {
-      { term: mk_sort(tokens[start + 1]), next: start + 2 }
+      let level = parse_sort_level(tokens[start + 1])
+      { term: mk_sort(level), next: start + 2 }
     }
   } else if head == "lam" {
     if start + 1 >= tokens.length() {
@@ -323,6 +346,27 @@ fn run_script(
     let outs = outputs
     outs.push(step.output)
     run_script(lines, idx + 1, step.state, outs)
+  }
+}
+
+///|
+test "parse_sort_level_success" {
+  inspect(parse_sort_level("Type"), content="0")
+  inspect(parse_sort_level("7"), content="7")
+  inspect(parse_sort_level("42"), content="42")
+}
+
+///|
+test "parse_sort_level_error" {
+  try {
+    let _ = parse_sort_level("4a")
+    inspect(
+      "Expected a parse error, but none was raised.",
+      content="sort-level-invalid-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="invalid sort level: 4a")
+    _ => ()
   }
 }
 

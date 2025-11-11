@@ -1,11 +1,7 @@
 ///|
-/// CoC core — ADT-based minimal implementation (enum Term)
-///
-/// Provides a small, self-contained Term enum and pure functions:
-/// mk_var/mk_sort/mk_pi/mk_lam/mk_app/mk_let, pp, term_eq, subst, whnf, normalize, convertible
 enum Term {
   Var(String)
-  Sort(String)
+  Sort(Int)
   Pi(String, Term, Term)
   Lam(String, Term, Term)
   App(Term, Term)
@@ -72,17 +68,17 @@ pub fn mk_var(name : String) -> Term {
 ///
 /// Parameters:
 ///
-/// * `level`: textual universe level such as "0" or "1".
+/// * `level`: universe level (0 for Type0, 1 for Type1, ...).
 ///
 /// Returns a `Sort` describing the given universe level.
 ///
 /// Example:
 ///
 /// ```moonbit
-/// let u0 = mk_sort("0")
+/// let u0 = mk_sort(0)
 /// inspect(pp(u0), content="Sort(0)")
 /// ```
-pub fn mk_sort(level : String) -> Term {
+pub fn mk_sort(level : Int) -> Term {
   Sort(level)
 }
 
@@ -100,7 +96,7 @@ pub fn mk_sort(level : String) -> Term {
 /// Example:
 ///
 /// ```moonbit
-/// let ty = mk_pi("x", mk_sort("0"), mk_var("x"))
+/// let ty = mk_pi("x", mk_sort(0), mk_var("x"))
 /// inspect(pp(ty), content="Pi(x,Sort(0),Var(x))")
 /// ```
 pub fn mk_pi(vname : String, domain : Term, codom : Term) -> Term {
@@ -121,7 +117,7 @@ pub fn mk_pi(vname : String, domain : Term, codom : Term) -> Term {
 /// Example:
 ///
 /// ```moonbit
-/// let lam = mk_lam("x", mk_sort("0"), mk_var("x"))
+/// let lam = mk_lam("x", mk_sort(0), mk_var("x"))
 /// inspect(pp(lam), content="Lam(x,Sort(0),Var(x))")
 /// ```
 pub fn mk_lam(vname : String, ty : Term, body : Term) -> Term {
@@ -163,7 +159,7 @@ pub fn mk_app(fn_ : Term, arg : Term) -> Term {
 /// Example:
 ///
 /// ```moonbit
-/// let let_term = mk_let("x", mk_sort("0"), mk_var("y"), mk_var("x"))
+/// let let_term = mk_let("x", mk_sort(0), mk_var("y"), mk_var("x"))
 /// inspect(pp(let_term), content="Let(x,Sort(0),Var(y),Var(x))")
 /// ```
 pub fn mk_let(vname : String, ty : Term, val : Term, body : Term) -> Term {
@@ -188,7 +184,7 @@ pub fn mk_let(vname : String, ty : Term, val : Term, body : Term) -> Term {
 pub fn pp(t : Term) -> String {
   match t {
     Var(n) => "Var(" + n + ")"
-    Sort(l) => "Sort(" + l + ")"
+    Sort(l) => "Sort(" + l.to_string() + ")"
     Pi(n, d, c) => "Pi(" + n + "," + pp(d) + "," + pp(c) + ")"
     Lam(n, ty, b) => "Lam(" + n + "," + pp(ty) + "," + pp(b) + ")"
     App(f, a) => "App(" + pp(f) + "," + pp(a) + ")"
@@ -241,7 +237,7 @@ pub fn term_eq(a : Term, b : Term) -> Bool {
 /// Example:
 ///
 /// ```moonbit
-/// let lam = mk_lam("x", mk_sort("0"), mk_var("x"))
+/// let lam = mk_lam("x", mk_sort(0), mk_var("x"))
 /// inspect(pp(subst(lam, "x", mk_var("y"))), content="Lam(x,Sort(0),Var(x))")
 /// ```
 pub fn subst(t : Term, vname : String, by : Term) -> Term {
@@ -282,7 +278,7 @@ pub fn subst(t : Term, vname : String, by : Term) -> Term {
 /// Example:
 ///
 /// ```moonbit
-/// let lam = mk_lam("x", mk_sort("0"), mk_var("x"))
+/// let lam = mk_lam("x", mk_sort(0), mk_var("x"))
 /// let app = mk_app(lam, mk_var("y"))
 /// inspect(pp(whnf(app)), content="Var(y)")
 /// ```
@@ -309,7 +305,7 @@ pub fn whnf(t : Term) -> Term {
 /// Example:
 ///
 /// ```moonbit
-/// let term = mk_app(mk_lam("x", mk_sort("0"), mk_var("x")), mk_var("z"))
+/// let term = mk_app(mk_lam("x", mk_sort(0), mk_var("x")), mk_var("z"))
 /// inspect(pp(normalize(term)), content="Var(z)")
 /// ```
 pub fn normalize(t : Term) -> Term {
@@ -334,7 +330,7 @@ pub fn normalize(t : Term) -> Term {
 /// Example:
 ///
 /// ```moonbit
-/// let lam = mk_lam("x", mk_sort("0"), mk_var("x"))
+/// let lam = mk_lam("x", mk_sort(0), mk_var("x"))
 /// let app = mk_app(lam, mk_var("y"))
 /// inspect(convertible(app, mk_var("y")), content="true")
 /// ```
@@ -377,7 +373,7 @@ pub fn empty_ctx() -> Array[Binding] {
 /// Example:
 ///
 /// ```moonbit
-/// let ctx = extend(empty_ctx(), "x", mk_sort("0"))
+/// let ctx = extend(empty_ctx(), "x", mk_sort(0))
 /// inspect(ctx.length(), content="1")
 /// ```
 pub fn extend(ctx : Array[Binding], name : String, ty : Term) -> Array[Binding] {
@@ -400,7 +396,7 @@ pub fn extend(ctx : Array[Binding], name : String, ty : Term) -> Array[Binding] 
 /// Example:
 ///
 /// ```moonbit
-/// let ctx = extend(empty_ctx(), "x", mk_sort("0"))
+/// let ctx = extend(empty_ctx(), "x", mk_sort(0))
 /// inspect(pp(lookup(ctx, "x")), content="Sort(0)")
 /// ```
 pub fn lookup(
@@ -416,25 +412,21 @@ pub fn lookup(
 }
 
 ///|
-/// Computes the successor universe label using a simple string scheme.
+/// Computes the successor universe level.
 ///
 /// Parameters:
 ///
-/// * `l`: current universe label (e.g. "0").
+/// * `level`: current universe index (0 for `Type0`).
 ///
-/// Returns the next label (either "1" for zero or appends `'`).
+/// Returns the next level (`level + 1`).
 ///
 /// Example:
 ///
 /// ```moonbit
-/// inspect(level_succ("0"), content="1")
+/// inspect(level_succ(0), content="1")
 /// ```
-pub fn level_succ(l : String) -> String {
-  if l == "0" {
-    "1"
-  } else {
-    l + "'"
-  }
+pub fn level_succ(level : Int) -> Int {
+  level + 1
 }
 
 ///|
@@ -450,27 +442,37 @@ pub fn level_succ(l : String) -> String {
 /// Example:
 ///
 /// ```moonbit
-/// let lam = mk_lam("x", mk_sort("0"), mk_var("x"))
+/// let lam = mk_lam("x", mk_sort(0), mk_var("x"))
 /// inspect(pp(type_infer(empty_ctx(), lam)), content="Pi(x,Sort(0),Sort(0))")
 /// ```
-pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise {
+pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise Error {
   match t {
     Var(n) => lookup(ctx, n)
-    Sort(l) => Sort(level_succ(l))
+    Sort(level) => Sort(level_succ(level))
     Pi(n, dom, cod) => {
-      let dty = type_infer(ctx, dom)
-      guard dty is Sort(_) else { raise PiDomainNotSort }
-      let ctx2 = extend(ctx, n, dom)
-      let cty = type_infer(ctx2, cod)
-      guard cty is Sort(_) else { raise PiCodomNotSort }
-      Sort("1")
+      let dom_ty = type_infer(ctx, dom)
+      match dom_ty {
+        Sort(dom_level) => {
+          let ctx2 = extend(ctx, n, dom)
+          let cod_ty = type_infer(ctx2, cod)
+          match cod_ty {
+            Sort(cod_level) => Sort(@cmp.maximum(dom_level, cod_level))
+            _ => raise PiCodomNotSort
+          }
+        }
+        _ => raise PiDomainNotSort
+      }
     }
     Lam(n, ty, body) => {
-      let tty = type_infer(ctx, ty)
-      guard tty is Sort(_) else { raise LambdaAnnNotType }
-      let ctx2 = extend(ctx, n, ty)
-      let bty = type_infer(ctx2, body)
-      Pi(n, ty, bty)
+      let ann_ty = type_infer(ctx, ty)
+      match ann_ty {
+        Sort(_) => {
+          let ctx2 = extend(ctx, n, ty)
+          let body_ty = type_infer(ctx2, body)
+          Pi(n, ty, body_ty)
+        }
+        _ => raise LambdaAnnNotType
+      }
     }
     App(f, a) => {
       let ft = type_infer(ctx, f)
@@ -508,8 +510,8 @@ pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise {
 /// ```
 pub fn tc_demo_infer_id() -> String {
   // simple identity: \x : Sort(0) . x
-  let _id_ty = mk_pi("x", mk_sort("0"), mk_var("x"))
-  let id = mk_lam("x", mk_sort("0"), mk_var("x"))
+  let _id_ty = mk_pi("x", mk_sort(0), mk_var("x"))
+  let id = mk_lam("x", mk_sort(0), mk_var("x"))
   try {
     let t = type_infer(empty_ctx(), id)
     pp(t)
@@ -536,7 +538,7 @@ test "type_errors" {
 
   // PiDomainNotSort
   try {
-    let term = mk_pi("x", mk_lam("y", mk_sort("0"), mk_var("y")), mk_sort("0"))
+    let term = mk_pi("x", mk_lam("y", mk_sort(0), mk_var("y")), mk_sort(0))
     let _ = type_infer(empty_ctx(), term)
 
   } catch {
@@ -546,7 +548,7 @@ test "type_errors" {
 
   // PiCodomNotSort
   try {
-    let term = mk_pi("x", mk_sort("0"), mk_lam("y", mk_sort("0"), mk_var("y")))
+    let term = mk_pi("x", mk_sort(0), mk_lam("y", mk_sort(0), mk_var("y")))
     let _ = type_infer(empty_ctx(), term)
 
   } catch {
@@ -556,7 +558,7 @@ test "type_errors" {
 
   // LambdaAnnNotType
   try {
-    let term = mk_lam("x", mk_lam("y", mk_sort("0"), mk_var("y")), mk_var("x"))
+    let term = mk_lam("x", mk_lam("y", mk_sort(0), mk_var("y")), mk_var("x"))
     let _ = type_infer(empty_ctx(), term)
 
   } catch {
@@ -569,8 +571,8 @@ test "type_errors" {
 
   // ArgMismatch
   try {
-    let fn_ = mk_lam("x", mk_sort("1"), mk_var("x"))
-    let arg = mk_sort("0")
+    let fn_ = mk_lam("x", mk_sort(1), mk_var("x"))
+    let arg = mk_sort(0)
     let term = mk_app(fn_, arg)
     let _ = type_infer(empty_ctx(), term)
 
@@ -584,7 +586,7 @@ test "type_errors" {
 
   // NotFunction
   try {
-    let term = mk_app(mk_sort("0"), mk_sort("1"))
+    let term = mk_app(mk_sort(0), mk_sort(1))
     let _ = type_infer(empty_ctx(), term)
 
   } catch {
@@ -597,7 +599,7 @@ test "type_errors" {
 
   // LetValueMismatch
   try {
-    let term = mk_let("x", mk_sort("1"), mk_sort("0"), mk_var("x"))
+    let term = mk_let("x", mk_sort(1), mk_sort(0), mk_var("x"))
     let _ = type_infer(empty_ctx(), term)
 
   } catch {

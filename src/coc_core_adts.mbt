@@ -445,7 +445,7 @@ pub fn level_succ(level : Int) -> Int {
 /// let lam = mk_lam("x", mk_sort(0), mk_var("x"))
 /// inspect(pp(type_infer(empty_ctx(), lam)), content="Pi(x,Sort(0),Sort(0))")
 /// ```
-pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise Error {
+pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise {
   match t {
     Var(n) => lookup(ctx, n)
     Sort(level) => Sort(level_succ(level))

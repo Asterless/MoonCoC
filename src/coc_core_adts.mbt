@@ -456,7 +456,7 @@ pub fn type_infer(ctx : Array[Binding], t : Term) -> Term raise Error {
           let ctx2 = extend(ctx, n, dom)
           let cod_ty = type_infer(ctx2, cod)
           match cod_ty {
-            Sort(cod_level) => Sort(@cmp.maximum(dom_level, level_succ(cod_level)))
+            Sort(cod_level) => Sort(@cmp.maximum(dom_level, cod_level))
             _ => raise PiCodomNotSort
           }
         }

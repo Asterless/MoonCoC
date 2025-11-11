@@ -228,7 +228,7 @@ fn render_defs(defs : Array[Definition]) -> String {
   } else {
     let lines = []
     for d in defs {
-      let line = d.name + " : " + pp(d.ty) + " = " + pp(d.term)
+      let line = d.name + " : " + d.ty.to_string() + " = " + d.term.to_string()
       lines.push(line)
     }
     join_lines(lines, 0)
@@ -243,7 +243,7 @@ fn render_ctx(ctx : Array[Binding]) -> String {
   } else {
     let lines = []
     for b in ctx {
-      let line = b.name + " : " + pp(b.ty)
+      let line = b.name + " : " + b.ty.to_string()
       lines.push(line)
     }
     join_lines(lines, 0)
@@ -290,7 +290,7 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
           defs.push(def)
           let ctx = extend(state.ctx, name, ty)
           let new_state = { ctx, defs }
-          ok_step(new_state, "Defined: " + name + " : " + pp(ty))
+          ok_step(new_state, "Defined: " + name + " : " + ty.to_string())
         }
       } catch {
         ParseError(msg) => ok_step(state, "Parse error: " + msg)
@@ -304,7 +304,7 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
         ok_step(state, "Unexpected extra token in infer command")
       } else {
         let ty = type_infer(state.ctx, res.term)
-        ok_step(state, pp(ty))
+        ok_step(state, ty.to_string())
       }
     } catch {
       ParseError(msg) => ok_step(state, "Parse error: " + msg)
@@ -317,7 +317,7 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
         ok_step(state, "Unexpected extra token in normalize command")
       } else {
         let expanded = expand_defs(res.term, state.defs, 0)
-        ok_step(state, pp(normalize(expanded)))
+        ok_step(state, normalize(expanded).to_string())
       }
     } catch {
       ParseError(msg) => ok_step(state, "Parse error: " + msg)
@@ -329,7 +329,7 @@ pub fn repl_process(state : ReplState, line : String) -> ReplStep {
         ok_step(state, "Unexpected extra token in whnf command")
       } else {
         let expanded = expand_defs(res.term, state.defs, 0)
-        ok_step(state, pp(whnf(expanded)))
+        ok_step(state, whnf(expanded).to_string())
       }
     } catch {
       ParseError(msg) => ok_step(state, "Parse error: " + msg)

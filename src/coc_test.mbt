@@ -1,16 +1,9 @@
 ///|
-/// Basic tests / examples for CoC scaffold
-pub fn test_core_demo() -> String {
-  // placeholder test: returns known string for test harness
-  "CoC REPL demo scaffold (core functions in src/coc_core.mbt)"
-}
-
-///|
 test "beta-reduction" {
   // (\x. x) y  => Var(y)
   let lam = mk_lam("x", mk_sort(0), mk_var("x"))
   let app = mk_app(lam, mk_var("y"))
-  inspect(pp(whnf(app)), content="Var(y)")
+  inspect(whnf(app), content="Var(y)")
 }
 
 ///|
@@ -19,7 +12,7 @@ test "subst-shadowing" {
   let inner = mk_lam("x", mk_sort(0), mk_var("x"))
   let outer = mk_lam("x", mk_sort(0), inner)
   let app = mk_app(outer, mk_var("a"))
-  inspect(pp(whnf(app)), content="Lam(x,Sort(0),Var(x))")
+  inspect(whnf(app), content="Lam(x,Sort(0),Var(x))")
 }
 
 ///|
@@ -29,13 +22,7 @@ test "normalize-nested" {
   let lam_z = mk_lam("z", mk_sort(0), mk_var("z"))
   let inner = normalize(mk_app(id, lam_z))
   let app = mk_app(inner, mk_var("k"))
-  inspect(pp(normalize(app)), content="Var(k)")
-}
-
-///|
-test "type-infer-pi" {
-  let pi = mk_pi("x", mk_sort(0), mk_var("x"))
-  inspect(pp(type_infer(empty_ctx(), pi)), content="Sort(1)")
+  inspect(normalize(app), content="Var(k)")
 }
 
 ///|
@@ -43,19 +30,110 @@ test "type-infer-pi-universe-levels" {
   // Test that Pi(x:A, B) has universe level max(level(A), level(B))
   // Case 1: Pi(x:Sort(0), Sort(1)) should have type Sort(max(0, 1)) = Sort(1), so we adjust to Sort(2)
   let pi1 = mk_pi("x", mk_sort(0), mk_sort(1))
-  inspect(pp(type_infer(empty_ctx(), pi1)), content="Sort(2)")
+  inspect(type_infer(empty_ctx(), pi1), content="Sort(2)")
 
   // Case 2: Pi(x:Sort(2), Sort(0)) should have type Sort(max(2, 0)) = Sort(2)
   let pi2 = mk_pi("x", mk_sort(2), mk_sort(0))
-  inspect(pp(type_infer(empty_ctx(), pi2)), content="Sort(3)")
+  inspect(type_infer(empty_ctx(), pi2), content="Sort(3)")
 
   // Case 3: Pi(x:Sort(1), Sort(1)) should have type Sort(max(1, 1)) = Sort(1)
   let pi3 = mk_pi("x", mk_sort(1), mk_sort(1))
-  inspect(pp(type_infer(empty_ctx(), pi3)), content="Sort(2)")
+  inspect(type_infer(empty_ctx(), pi3), content="Sort(2)")
 
   // Case 4: Pi(x:Sort(0), Sort(0)) should have type Sort(max(0, 0)) = Sort(0)
   let pi4 = mk_pi("x", mk_sort(0), mk_sort(0))
-  inspect(pp(type_infer(empty_ctx(), pi4)), content="Sort(1)")
+  inspect(type_infer(empty_ctx(), pi4), content="Sort(1)")
+}
+
+///|
+test "tc_infer_id" {
+  // check that inferring the simple identity returns Pi(x,Sort(0),Sort(0))
+  inspect(tc_demo_infer_id(), content="Pi(x,Sort(0),Sort(0))")
+}
+
+///|
+test "type_errors" {
+  // UnboundVariable
+  try {
+    let _ = type_infer(empty_ctx(), mk_var("x"))
+
+  } catch {
+    e => inspect(explain_error(e), content="variable not found in context")
+  }
+
+  // PiDomainNotSort
+  try {
+    let term = mk_pi("x", mk_lam("y", mk_sort(0), mk_var("y")), mk_sort(0))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(explain_error(err), content="Pi domain is not a valid universe")
+  }
+
+  // PiCodomNotSort
+  try {
+    let term = mk_pi("x", mk_sort(0), mk_lam("y", mk_sort(0), mk_var("y")))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(explain_error(err), content="Pi codomain is not a valid universe")
+  }
+
+  // LambdaAnnNotType
+  try {
+    let term = mk_lam("x", mk_lam("y", mk_sort(0), mk_var("y")), mk_var("x"))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="lambda annotation is not a valid type",
+      )
+  }
+
+  // ArgMismatch
+  try {
+    let fn_ = mk_lam("x", mk_sort(1), mk_var("x"))
+    let arg = mk_sort(0)
+    let term = mk_app(fn_, arg)
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="function argument type does not match parameter",
+      )
+  }
+
+  // NotFunction
+  try {
+    let term = mk_app(mk_sort(0), mk_sort(1))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="attempted to apply a non-function term",
+      )
+  }
+
+  // LetValueMismatch
+  try {
+    let term = mk_let("x", mk_sort(1), mk_sort(0), mk_var("x"))
+    let _ = type_infer(empty_ctx(), term)
+
+  } catch {
+    err =>
+      inspect(
+        explain_error(err),
+        content="let value does not match declared type",
+      )
+  }
 }
 
 ///|

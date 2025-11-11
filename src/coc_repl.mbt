@@ -31,6 +31,18 @@ priv struct ParseResult {
 priv suberror ParseError String
 
 ///|
+/// Character code for '0', used in parsing sort levels.
+const ZERO_CODE : Int = 48
+
+///|
+/// Character code for '9', used in parsing sort levels.
+const NINE_CODE : Int = 57
+
+///|
+/// Maximum safe integer value for overflow checking (32-bit signed Int).
+const MAX_INT : Int = 2147483647
+
+///|
 /// Creates a fresh REPL state with an empty context and no definitions.
 pub fn repl_init() -> ReplState {
   let ctx = empty_ctx()
@@ -66,15 +78,17 @@ fn parse_sort_level(token : String) -> Int raise ParseError {
   if chars.length() == 0 {
     raise ParseError("invalid sort level: " + token)
   }
-  let zero_code = "0".to_array()[0].to_int()
-  let nine_code = "9".to_array()[0].to_int()
   let mut acc = 0
   for ch in chars {
     let code = ch.to_int()
-    if code < zero_code || code > nine_code {
+    if code < ZERO_CODE || code > NINE_CODE {
       raise ParseError("invalid sort level: " + token)
     }
-    acc = acc * 10 + (code - zero_code)
+    let digit = code - ZERO_CODE
+    if acc > (MAX_INT - digit) / 10 {
+      raise ParseError("sort level too large: " + token)
+    }
+    acc = acc * 10 + digit
   }
   acc
 }
@@ -366,6 +380,21 @@ test "parse_sort_level_error" {
     )
   } catch {
     ParseError(msg) => inspect(msg, content="invalid sort level: 4a")
+    _ => ()
+  }
+}
+
+///|
+test "parse_sort_level_overflow" {
+  // Test that very large numbers are rejected with overflow protection
+  try {
+    let _ = parse_sort_level("99999999999999999999")
+    inspect(
+      "Expected overflow error, but none was raised.",
+      content="sort-level-overflow-no-error",
+    )
+  } catch {
+    ParseError(msg) => inspect(msg, content="sort level too large: 99999999999999999999")
     _ => ()
   }
 }

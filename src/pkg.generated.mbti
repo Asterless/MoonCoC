@@ -40,8 +40,6 @@ fn subst(Term, String, Term) -> Term
 
 fn tc_demo_infer_id() -> String
 
-fn term_eq(Term, Term) -> Bool
-
 fn type_infer(Array[Binding], Term) -> Term raise
 
 fn whnf(Term) -> Term
@@ -81,6 +79,7 @@ pub struct ReplStep {
 }
 
 type Term
+impl Eq for Term
 
 // Type aliases
 

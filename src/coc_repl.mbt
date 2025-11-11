@@ -394,7 +394,8 @@ test "parse_sort_level_overflow" {
       content="sort-level-overflow-no-error",
     )
   } catch {
-    ParseError(msg) => inspect(msg, content="sort level too large: 99999999999999999999")
+    ParseError(msg) =>
+      inspect(msg, content="sort level too large: 99999999999999999999")
     _ => ()
   }
 }

@@ -1,34 +1,14 @@
 ///|
-///
 fn main {
-  println("MoonCoc REPL (type :quit or :q to exit)")
-  println("Type \"coc help\" to list available commands.")
-  let rl : @rl.T = @rl.new()
-  let state = @coc.repl_init()
-  repl_loop(rl, state)
-  rl.wait_for_completion()
-}
+  // Put your main program logic here, run `moon run cmd/main.mbt` to execute.
 
-///|
-/// * BUG: Cann't read user's input.
-/// ```bash
-/// moon run cmd
-/// ```
-/// But what ever I do, it just can't read the input.
-fn repl_loop(rl : @rl.T, state : @coc.ReplState) -> Unit {
-  rl.question("> ", line => {
-    println("You entered: " + line)
-    if line == "" {
-      repl_loop(rl, state)
-    } else if line == ":quit" || line == ":q" {
-      println("Goodbye.")
-      rl.close()
-    } else {
-      let step = @coc.repl_process(state, line)
-      if step.output != "" {
-        println(step.output)
-      }
-      repl_loop(rl, step.state)
-    }
-  })
+  // Example1: Running a REPL command using MoonCoc
+  let outputs1 = @coc.repl_run_script(["help"])
+  println("Outputs: " + outputs1.join(", "))
+
+  // Eample2:
+  let outputs2 = @coc.repl_run_script([
+    "def id lam x sort 0 var x", "normalize app var id var y",
+  ])
+  println("Outputs: " + outputs2.join(", "))
 }

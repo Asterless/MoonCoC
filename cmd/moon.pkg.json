@@ -4,10 +4,6 @@
         {
             "path": "Asterless/MoonCoc/src",
             "alias": "coc"
-        },
-        {
-            "path": "oboard/readline",
-            "alias": "rl"
         }
     ],
     "alert-list": "-deprecated"
